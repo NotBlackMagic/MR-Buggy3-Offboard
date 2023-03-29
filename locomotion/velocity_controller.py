@@ -99,40 +99,44 @@ class VelocityController(Node):
 		# self.steering_pid = PID()
 
 		# Plotting
-		self.app = QtWidgets.QApplication([])
-		self.graphWidget = pg.PlotWidget() # creates a window
-		self.graphWidget.setTitle("PID Loop", size="20pt")
-		self.graphWidget.setLabel("left", "Value")
-		self.graphWidget.setLabel("bottom", "Call")
-		self.graphWidget.showGrid(x=True, y=True)
-		self.graphWidget.setYRange(-1, 1, padding=0)
-		self.graphWidget.addLegend()
+		self.plotting_en = True
+		if(self.plotting_en):
+			self.app = QtWidgets.QApplication([])
+			self.graphWidget = pg.PlotWidget() # creates a window
+			self.graphWidget.setTitle("Velocity PID Controller", size="20pt")
+			self.graphWidget.setLabel("left", "Value")
+			self.graphWidget.setLabel("bottom", "Call")
+			self.graphWidget.showGrid(x=True, y=True)
+			self.graphWidget.setYRange(-1, 1, padding=0)
+			self.graphWidget.addLegend()
 
-		# Plotting data holder
-		window_width = 300
-		self.dataPID_p = np.linspace(0,0,window_width)
-		self.dataPID_i = np.linspace(0,0,window_width)
-		self.dataPID_d = np.linspace(0,0,window_width)
-		self.dataPID_out = np.linspace(0,0,window_width)
-		self.dataPID_e = np.linspace(0,0,window_width)
-		self.ptr = -window_width
+			# Plotting data holder
+			window_width = 300
+			self.dataPID_p = np.linspace(0,0,window_width)
+			self.dataPID_i = np.linspace(0,0,window_width)
+			self.dataPID_d = np.linspace(0,0,window_width)
+			self.dataPID_out = np.linspace(0,0,window_width)
+			self.data_linear = np.linspace(0,0,window_width)
+			self.data_angular = np.linspace(0,0,window_width)
+			self.ptr = -window_width
 
-		# Create plot curves
-		self.curvePID_p = self.graphWidget.plot(name = "PID P", pen=pg.mkPen(color=(255, 0, 0), width=2))
-		self.curvePID_i = self.graphWidget.plot(name = "PID I", pen=pg.mkPen(color=(0, 255, 0), width=2))
-		self.curvePID_d = self.graphWidget.plot(name = "PID D", pen=pg.mkPen(color=(0, 0, 255), width=2))
-		self.curvePID_out = self.graphWidget.plot(name = "PID Out", pen=pg.mkPen(color=(255, 255, 255), width=2))
-		self.curvePID_e = self.graphWidget.plot(name = "Speed (m/s)*0.1", pen=pg.mkPen(color=(255, 128, 0), width=2))
+			# Create plot curves
+			self.curvePID_p = self.graphWidget.plot(name = "PID P", pen=pg.mkPen(color=(255, 0, 0), width=2))
+			self.curvePID_i = self.graphWidget.plot(name = "PID I", pen=pg.mkPen(color=(0, 255, 0), width=2))
+			self.curvePID_d = self.graphWidget.plot(name = "PID D", pen=pg.mkPen(color=(0, 0, 255), width=2))
+			self.curvePID_out = self.graphWidget.plot(name = "PID Out", pen=pg.mkPen(color=(255, 255, 255), width=2))
+			self.curve_linear = self.graphWidget.plot(name = "Speed (m/s)*0.1", pen=pg.mkPen(color=(255, 128, 0), width=2))
+			self.curve_angular = self.graphWidget.plot(name = "Angular (rad/s)*0.1", pen=pg.mkPen(color=(255, 128, 0), width=2))
 
-		# Start plotting
-		QtWidgets.QMainWindow.show(self.graphWidget)
+			# Start plotting
+			QtWidgets.QMainWindow.show(self.graphWidget)
 
 		# Start ROS Subscribers
 		self.twist_subscriber = self.create_subscription(
 			Twist,
 			twist_topic,
 			self.twist_callback,
-			qos_profile)
+			10)
 
 		# Use PX4 uROS (dds) communication
 		self.wheel_encoder_br_subscriber = self.create_subscription(
@@ -208,38 +212,56 @@ class VelocityController(Node):
 		throttle_ctrl = self.throttle_pid.PIDUpdate(self.linear[0], self.ackermann_odometry.twist_linear[0], self.pid_dt)
 
 		# PID Controller for steering (for now direct calculation)
-		steering_ctrl = self.ackermann_odometry.steering_angle_from_velocity(self.linear[0], self.angular[2])
-		#steering_ctrl = self.steering_pid.PIDUpdate(self.angular[2], self.ackermann_odometry.twistAngular[2], self.dt)
+		steering_angle = self.ackermann_odometry.steering_angle_from_velocity(self.linear[0], self.angular[2])
+		steering_ctrl = self.ackermann_odometry.angle_to_rc_command_steering(steering_angle)		
+		# steering_ctrl = self.steering_pid.PIDUpdate(self.angular[2], self.ackermann_odometry.twistAngular[2], self.dt)
+
+		# print("RC Thrust: %.3f, Steering: %.3f rad | %.0f\n" % (throttle_ctrl, steering_angle, steering_ctrl))
 
 		# Scale values
 		self.manual_control_throttle = (500.0 + throttle_ctrl * 500.0)
-		self.manual_control_steering = (steering_ctrl * 1000.0)
+		# self.manual_control_steering = (steering_ctrl * 1000.0)
+		self.manual_control_steering = steering_ctrl
+
+		# Limit values
+		if(self.manual_control_throttle > 1000):
+			self.manual_control_throttle = 1000.0
+		elif(self.manual_control_throttle < 0):
+			self.manual_control_throttle = 0.0
+		if(self.manual_control_steering > 1000):
+			self.manual_control_steering = 1000.0
+		elif(self.manual_control_steering < -1000):
+			self.manual_control_steering = -1000.0
 
 		# Data plotting
-		self.dataPID_p[:-1] = self.dataPID_p[1:]
-		self.dataPID_p[-1] = self.throttle_pid.pid_p
-		self.dataPID_i[:-1] = self.dataPID_i[1:]
-		self.dataPID_i[-1] = self.throttle_pid.pid_i
-		self.dataPID_d[:-1] = self.dataPID_d[1:]
-		self.dataPID_d[-1] = self.throttle_pid.pid_d
-		self.dataPID_out[:-1] = self.dataPID_out[1:]
-		self.dataPID_out[-1] = self.throttle_pid.pid_out
-		self.dataPID_e[:-1] = self.dataPID_e[1:]
-		# self.dataPID_e[-1] = self.throttle_pid.prev_error
-		self.dataPID_e[-1] = self.ackermann_odometry.twist_linear[0] / 10.0
-		self.ptr += 1
+		if(self.plotting_en):
+			self.dataPID_p[:-1] = self.dataPID_p[1:]
+			self.dataPID_p[-1] = self.throttle_pid.pid_p
+			self.dataPID_i[:-1] = self.dataPID_i[1:]
+			self.dataPID_i[-1] = self.throttle_pid.pid_i
+			self.dataPID_d[:-1] = self.dataPID_d[1:]
+			self.dataPID_d[-1] = self.throttle_pid.pid_d
+			self.dataPID_out[:-1] = self.dataPID_out[1:]
+			self.dataPID_out[-1] = self.throttle_pid.pid_out
+			self.data_linear[:-1] = self.data_linear[1:]
+			self.data_linear[-1] = self.ackermann_odometry.twist_linear[0] / 10.0
+			self.data_angular[:-1] = self.data_angular[1:]
+			self.data_angular[-1] = self.ackermann_odometry.twist_angular[2] / 10.0
+			self.ptr += 1
 
-		self.curvePID_p.setData(self.dataPID_p)
-		self.curvePID_p.setPos(self.ptr, 0)
-		self.curvePID_i.setData(self.dataPID_i)
-		self.curvePID_i.setPos(self.ptr, 0)
-		self.curvePID_d.setData(self.dataPID_d)
-		self.curvePID_d.setPos(self.ptr, 0)
-		self.curvePID_out.setData(self.dataPID_out)
-		self.curvePID_out.setPos(self.ptr, 0)
-		self.curvePID_e.setData(self.dataPID_e)
-		self.curvePID_e.setPos(self.ptr, 0)
-		QtWidgets.QApplication.processEvents()
+			self.curvePID_p.setData(self.dataPID_p)
+			self.curvePID_p.setPos(self.ptr, 0)
+			self.curvePID_i.setData(self.dataPID_i)
+			self.curvePID_i.setPos(self.ptr, 0)
+			self.curvePID_d.setData(self.dataPID_d)
+			self.curvePID_d.setPos(self.ptr, 0)
+			self.curvePID_out.setData(self.dataPID_out)
+			self.curvePID_out.setPos(self.ptr, 0)
+			self.curve_linear.setData(self.data_linear)
+			self.curve_linear.setPos(self.ptr, 0)
+			self.curve_angular.setData(self.data_angular)
+			self.curve_angular.setPos(self.ptr, 0)
+			QtWidgets.QApplication.processEvents()
 		
 		# print("PID: E: %02f; P: %02f; I: %02f; D: %02f; Out: %02f" % (self.throttle_pid.prev_error, self.throttle_pid.pid_p, self.throttle_pid.pid_i, self.throttle_pid.pid_d, self.manual_control_throttle))
 

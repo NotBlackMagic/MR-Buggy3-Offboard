@@ -37,6 +37,13 @@ def generate_launch_description():
 		name="vel_ctrl"
 	)
 
+	# Start Position controller
+	start_pos_ctrl_cmd = Node(
+		package="locomotion",
+		executable="pos_ctrl",
+		name="pos_ctrl"
+	)
+
 	# Start Keyboard Control 
 	start_keyboard_ctrl_cmd = Node(
 		package="locomotion",
@@ -52,7 +59,7 @@ def generate_launch_description():
 	)
 
     # Start robot localization using an Extended Kalman filter
-	start_robot_localization_cmd = Node(
+	start_robot_localization_local_cmd = Node(
 		package="robot_localization",
 		executable="ekf_node",
 		name="ekf_filter_node",
@@ -88,11 +95,12 @@ def generate_launch_description():
 	ld.add_action(start_mavlink_bridge)
 	ld.add_action(start_odometry_cmd)
 	ld.add_action(start_vel_ctrl_cmd)
-	ld.add_action(start_keyboard_ctrl_cmd)
+	# ld.add_action(start_pos_ctrl_cmd)
+	# ld.add_action(start_keyboard_ctrl_cmd)
 	ld.add_action(start_msg_trans_cmd)
-	ld.add_action(start_robot_localization_cmd)
-	ld.add_action(start_navsat_transform_cmd)
-	ld.add_action(start_robot_localization_global_cmd)
+	# ld.add_action(start_robot_localization_local_cmd)
+	# ld.add_action(start_navsat_transform_cmd)
+	# ld.add_action(start_robot_localization_global_cmd)
 
     #ros2 service call /datum robot_localization/srv/SetDatum '{geo_pose: {position: {latitude: 38.77, longitude: -9.16, altitude: 133.78}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}'
 	ld.add_action(

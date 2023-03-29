@@ -23,17 +23,27 @@ class MAVLinkBridge(Node):
 	def __init__(self):
 		super().__init__("MAVLinkBridge")
 
-		# For Linux to PX4 Hardware via UART: "/dev/ttyUSB0", baud=57600 or "/dev/ttyACM0", baud=57600 
+		# For Linux to PX4 Hardware via UART: "/dev/ttyUSB0", baud=57600 or "/dev/ttyACM0", baud=921600
+		# For Linux NavQPlus Hardware via UART: "/dev/ttymcx1"
 		# For Windows to PX4 Hardware via UART: "COM5", baud=57600
+		param_descriptor = ParameterDescriptor(description = "Sets the MAVLink connection type (Serial or Ethernet/UDP).")
+		self.declare_parameter("mavlink_serial", False, param_descriptor)
+		param_descriptor = ParameterDescriptor(description = "Sets the MAVLink ethernet/UDP IP address.")
+		self.declare_parameter("mavlink_udp_address", "10.0.0.3", param_descriptor)
+		param_descriptor = ParameterDescriptor(description = "Sets the MAVLink ethernet/UDP port.")
+		self.declare_parameter("mavlink_udp_port", 14551, param_descriptor)
 		param_descriptor = ParameterDescriptor(description = "Sets the MAVLink serial link port.")
-		self.declare_parameter("mavlink_port", "/dev/ttyACM0", param_descriptor)
+		self.declare_parameter("mavlink_serial_port", "/dev/ttyACM0", param_descriptor)
 		param_descriptor = ParameterDescriptor(description = "Sets the MAVLink serial link baudrate.")
-		self.declare_parameter("mavlink_baud", 921600, param_descriptor)
+		self.declare_parameter("mavlink_serial_baud", 921600, param_descriptor)
 		param_descriptor = ParameterDescriptor(description = "Sets the MAVLink message check/refresh rate.")
 		self.declare_parameter("mavlink_rate", 250.0, param_descriptor)
 
-		mavlink_port = self.get_parameter("mavlink_port").value
-		mavlink_baud = self.get_parameter("mavlink_baud").value
+		mavlink_serial = self.get_parameter("mavlink_serial").value
+		mavlink_udp_address = self.get_parameter("mavlink_udp_address").value
+		mavlink_udp_port = self.get_parameter("mavlink_udp_port").value
+		mavlink_serial_port = self.get_parameter("mavlink_serial_port").value
+		mavlink_serial_baud = self.get_parameter("mavlink_serial_baud").value
 		mavlink_rate = self.get_parameter("mavlink_rate").value
 
 		# QoS Profile that is compatible with PX4 (Important!!)
@@ -65,10 +75,12 @@ class MAVLinkBridge(Node):
 
 		# Use PX4 MAVLink communication
 		# Create MAVLink connection
-		# Via UART/Serial:
-		self.master = mavutil.mavlink_connection(mavlink_port, baud = mavlink_baud)
-		# For Linux to PX4 Software via TCP
-		# self.master = mavutil.mavlink_connection("udpin:127.0.0.1:14540", baud=57600)
+		if mavlink_serial == True:
+			# Via UART/Serial:
+			self.master = mavutil.mavlink_connection(mavlink_serial_port, baud = mavlink_serial_baud)
+		else:
+			# For Linux to PX4 Software via TCP
+			self.master = mavutil.mavlink_connection(mavlink_udp_address + ":" + str(mavlink_udp_port))
 
 		# Start MAVLink Subscribers (have to be checked regularly)
 		timer_period = 1.0 / mavlink_rate	# seconds
@@ -145,37 +157,42 @@ class MAVLinkBridge(Node):
 	def gps_raw_callback_mavlink(self, name, msg):
 		gps_msg = SensorGps()
 		gps_msg.timestamp = msg.time_usec
-		# gps_msg.timestamp_sample = 0
-		# gps_msg.device_id = 0
-		gps_msg.lat = msg.lat
-		gps_msg.lon = msg.lon
-		gps_msg.alt = msg.alt
-		gps_msg.alt_ellipsoid = msg.alt_ellipsoid
-		gps_msg.s_variance_m_s = msg.vel_acc / 1000
-		# gps_msg.c_variance_rad = 0.0
 		gps_msg.fix_type = msg.fix_type
-		gps_msg.eph = msg.h_acc / 1000
-		gps_msg.epv = msg.v_acc / 1000
-		gps_msg.hdop = msg.eph / 100
-		gps_msg.vdop = msg.epv / 100
-		# gps_msg.noise_per_ms = 0
-		# gps_msg.automatic_gain_control = 0
-		# gps_msg.jamming_state = 0
-		# gps_msg.jamming_indicator = 0
-		gps_msg.vel_m_s = msg.vel / 100
-		# gps_msg.vel_n_m_s = 0.0
-		# gps_msg.vel_e_m_s = 0.0
-		# gps_msg.vel_d_m_s = 0.0
-		gps_msg.cog_rad = msg.cog * 0.0174533 / 100
-		# gps_msg.vel_ned_valid = False
-		# gps_msg.timestamp_time_relative = 0
-		# gps_msg.time_utc_usec = 0
-		gps_msg.satellites_used = msg.satellites_visible
-		gps_msg.heading = msg.yaw * 0.0174533 / 100
-		# gps_msg.heading_offset = 0
-		gps_msg.heading_accuracy = msg.hdg_acc * 0.0174533 / 10000
-		# gps_msg.rtcm_injection_rate = 0
-		# gps_msg.selected_rtcm_instance = 0
+		if(msg.fix_type == 0 or msg.fix_type == 1):
+			# No GPS or no GPS fix/position information
+			x = 0
+		else:
+			# Some kind of GPS fix
+			# gps_msg.timestamp_sample = 0
+			# gps_msg.device_id = 0
+			gps_msg.lat = msg.lat
+			gps_msg.lon = msg.lon
+			gps_msg.alt = msg.alt
+			gps_msg.alt_ellipsoid = msg.alt_ellipsoid
+			gps_msg.s_variance_m_s = msg.vel_acc / 1000
+			# gps_msg.c_variance_rad = 0.0
+			gps_msg.eph = msg.h_acc / 1000
+			gps_msg.epv = msg.v_acc / 1000
+			gps_msg.hdop = msg.eph / 100
+			gps_msg.vdop = msg.epv / 100
+			# gps_msg.noise_per_ms = 0
+			# gps_msg.automatic_gain_control = 0
+			# gps_msg.jamming_state = 0
+			# gps_msg.jamming_indicator = 0
+			gps_msg.vel_m_s = msg.vel / 100
+			# gps_msg.vel_n_m_s = 0.0
+			# gps_msg.vel_e_m_s = 0.0
+			# gps_msg.vel_d_m_s = 0.0
+			gps_msg.cog_rad = msg.cog * 0.0174533 / 100
+			# gps_msg.vel_ned_valid = False
+			# gps_msg.timestamp_time_relative = 0
+			# gps_msg.time_utc_usec = 0
+			gps_msg.satellites_used = msg.satellites_visible
+			gps_msg.heading = msg.yaw * 0.0174533 / 100
+			# gps_msg.heading_offset = 0
+			gps_msg.heading_accuracy = msg.hdg_acc * 0.0174533 / 10000
+			# gps_msg.rtcm_injection_rate = 0
+			# gps_msg.selected_rtcm_instance = 0
 		self.publisher_vehicle_gps.publish(gps_msg)
 
 	def highres_imu_callback_mavlink(self, name, msg):

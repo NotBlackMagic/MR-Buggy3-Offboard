@@ -6,7 +6,7 @@ package_name = 'locomotion'
 
 setup(
     name=package_name,
-    version='0.0.0',
+    version='0.1.1',
     packages=[package_name],
     data_files=[
         ('share/ament_index/resource_index/packages',
@@ -18,9 +18,9 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='NotBlackMagic',
-    maintainer_email='fabian_naef@live.com',
+    maintainer_email='social@notblackmagic.com',
     description='Locomotion controller for the MR-Buggy3. Gets positions and published RC/Manual commands to the PX4 autopilot.',
-    license='Apache License 2.0',
+    license='BSD 3-Clause License',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
@@ -29,6 +29,7 @@ setup(
             'odometry = locomotion.odometry:main',
             'vel_ctrl = locomotion.velocity_controller:main',
 			'keyboard_ctrl = locomotion.keyboard_control:main',
+            'pos_ctrl = locomotion.position_controller:main',
         ],
     },
 )

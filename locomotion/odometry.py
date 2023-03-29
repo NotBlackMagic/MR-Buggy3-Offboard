@@ -27,7 +27,7 @@ class OdometryHandler(Node):
 		param_descriptor = ParameterDescriptor(description = "Sets the update and publish rate (in Hz) of the odometry message.")
 		self.declare_parameter("odometry_rate", 10.0, param_descriptor)
 		param_descriptor = ParameterDescriptor(description = "Sets if the odometry TF message should be published.")
-		self.declare_parameter("publish_tf", False, param_descriptor)
+		self.declare_parameter("publish_tf", True, param_descriptor)
 		param_descriptor = ParameterDescriptor(description = "Sets the Odometry topic name.")
 		self.declare_parameter("odom_topic", "/wheel/odometry", param_descriptor)		
 		param_descriptor = ParameterDescriptor(description = "Sets the Odometry frame ID.")
@@ -167,10 +167,9 @@ class OdometryHandler(Node):
 		odom_msg.pose.pose.position.y = self.ackermann_odometry.pose_point[1]
 		odom_msg.pose.pose.position.z = self.ackermann_odometry.pose_point[2]
 		# Set pose orientation
-		quaternion = quaternion_from_euler(
-			self.ackermann_odometry.pose_orientation[0], 
-			self.ackermann_odometry.pose_orientation[1], 
-			self.ackermann_odometry.pose_orientation[2])
+		quaternion = quaternion_from_euler(	self.ackermann_odometry.pose_orientation[0], 
+											self.ackermann_odometry.pose_orientation[1], 
+											self.ackermann_odometry.pose_orientation[2])
 		odom_msg.pose.pose.orientation.x = quaternion[0]
 		odom_msg.pose.pose.orientation.y = quaternion[1]
 		odom_msg.pose.pose.orientation.z = quaternion[2]
@@ -183,6 +182,9 @@ class OdometryHandler(Node):
 		odom_msg.twist.twist.angular.x = self.ackermann_odometry.twist_angular[0]
 		odom_msg.twist.twist.angular.y = self.ackermann_odometry.twist_angular[1]
 		odom_msg.twist.twist.angular.z = self.ackermann_odometry.twist_angular[2]
+
+		# print("Odom: X: %.2f, Y: %.2f, Yaw: %.2f\n" % (self.ackermann_odometry.pose_point[0], self.ackermann_odometry.pose_point[1], self.ackermann_odometry.pose_orientation[2]))
+
 		# Publish
 		self.odometry_publisher.publish(odom_msg)
 

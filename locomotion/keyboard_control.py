@@ -24,22 +24,14 @@ class KeyboardControl(Node):
 		twist_topic = self.get_parameter("twist_topic").value
 		twist_rate = 10
 		
-		self.linear_speed_x = 4.0					# Forward speed in m/s
-		self.angular_speed_yaw = math.radians(600)	# Turn speed in rad/s (converted from deg/s)
+		self.linear_speed_x = 2.0					# Forward speed in m/s
+		self.angular_speed_yaw = math.radians(90)	# Turn speed in rad/s (converted from deg/s)
 
 		self.x = 0.0
 		self.th  = 0.0
 
-		# QoS Profile that is compatible with PX4 (Important!!)
-		qos_profile = QoSProfile(
-			reliability = QoSReliabilityPolicy.BEST_EFFORT,
-			durability = QoSDurabilityPolicy.TRANSIENT_LOCAL,
-			history = QoSHistoryPolicy.KEEP_LAST,
-			depth = 1
-		)
-
 		# Start ROS Publishers
-		self.publisher_twist = self.create_publisher(Twist, twist_topic, qos_profile)
+		self.publisher_twist = self.create_publisher(Twist, twist_topic, 10)
 
 		# Start keyboard listener
 		listener = keyboard.Listener(on_press=self.keyboard_on_press, on_release=self.keyboard_on_release)

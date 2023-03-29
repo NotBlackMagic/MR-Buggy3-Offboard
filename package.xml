@@ -4,8 +4,8 @@
 	<name>locomotion</name>
 	<version>0.1.1</version>
 	<description>Locomotion controller for the MR-Buggy3. Gets positions and published RC/Manual commands to the PX4 autopilot.</description>
-	<maintainer email="fabian_naef@live.com">NotBlackMagic</maintainer>
-	<license>Apache License 2.0</license>
+	<maintainer email="social@notblackmagic.com">NotBlackMagic</maintainer>
+	<license>BSD 3-Clause License</license>
 
 	<depend>numpy</depend>
 	<depend>px4_msgs</depend>

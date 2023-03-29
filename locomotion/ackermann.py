@@ -22,7 +22,6 @@ class AckermannOdometry:
 
 		# Time keeping variable
 		self.time = time.time()
-		self.timestamp = 0.0
 
 		# Pose variables
 		self.pose_point = np.array([0.0, 0.0, 0.0])	# Pose: X, Y, Z (global referenced)
@@ -122,6 +121,8 @@ class AckermannOdometry:
 		deltaTime = time.time() - self.time
 		self.time = time.time()
 
+		# print("Delta Time: %.2f\n" % deltaTime)
+
 		# Calculate delta encoder values
 		if self.front_encoders:
 			deltaFrVal = frVal - self.encoder_values[0]
@@ -145,20 +146,18 @@ class AckermannOdometry:
 		# Display data filter: alpha (A) = Ts / (Ts + RC), RC = 1 / (2*pi*Fc)
 		alpha = 0.557	# Around Fc ~= Fs/5
 		# if (self.timestamp + 1.0) <= time.time():
-		dt = time.time() - self.timestamp
-		new_rps = self.encoder_count[0] * (1.0 / self.ticks_per_revolution) * (1.0 / (dt))
+		new_rps = self.encoder_count[0] * (1.0 / self.ticks_per_revolution) * (1.0 / (deltaTime))
 		self.rps[0] = alpha * new_rps + (1 - alpha) * self.rps[0]
-		new_rps = self.encoder_count[1] * (1.0 / self.ticks_per_revolution) * (1.0 / (dt))
+		new_rps = self.encoder_count[1] * (1.0 / self.ticks_per_revolution) * (1.0 / (deltaTime))
 		self.rps[1] = alpha * new_rps + (1 - alpha) * self.rps[1]
-		new_rps = self.encoder_count[2] * (1.0 / self.ticks_per_revolution) * (1.0 / (dt))
+		new_rps = self.encoder_count[2] * (1.0 / self.ticks_per_revolution) * (1.0 / (deltaTime))
 		self.rps[2] = alpha * new_rps + (1 - alpha) * self.rps[2]
-		new_rps = self.encoder_count[3] * (1.0 / self.ticks_per_revolution) * (1.0 / (dt))
+		new_rps = self.encoder_count[3] * (1.0 / self.ticks_per_revolution) * (1.0 / (deltaTime))
 		self.rps[3] = alpha * new_rps + (1 - alpha) * self.rps[3]
 		self.encoder_count[0] = 0
 		self.encoder_count[1] = 0
 		self.encoder_count[2] = 0
 		self.encoder_count[3] = 0
-		self.timestamp = time.time()
 
 		# Update linear twist values
 		# Simple update method (for now), use maximum RPS values gives forward velocity (instead of thrust)
@@ -182,7 +181,8 @@ class AckermannOdometry:
 		# 	self.twist_linear[0] = -self.twist_linear[0]
 
 		# Update angular twist values
-		self.twist_angular[2] = self.steering_angle_from_velocity(self.twist_linear[0], steer) * (1.0 / deltaTime)
+		angle = self.rc_command_steering_to_angle(steer)
+		self.twist_angular[2] = angle * (1.0 / deltaTime)
 
 		# Update pose, using odometry calculations
 		self.odometry_update(deltaTime)
